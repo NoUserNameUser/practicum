@@ -6,13 +6,18 @@ Created on May 6, 2017
 import Tkinter as tk
 
 def render(frame):
-#     button = tk.Button(frame, )
     frame.mainloop()
     return
 
+def init(title, width, height):
+    window = tk.Tk()
+    window.title(title)
+    window.geometry(str(width)+'x'+str(height))
+    return window
+
 # main function
 if __name__ == "__main__":
-    frame = tk.Tk()
+    frame = init('myApp', 1200, 900)
     render(frame)
     
     
