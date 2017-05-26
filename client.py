@@ -8,12 +8,12 @@ import socket, time, multiprocessing, Queue
 class ClientSide(object):
     BUFF_SIZ = 1024
 
-    def __init__(self, host, port):
+    def __init__(self):
+        self.config = True
+
+    def connectTo(self, host, port):
         self.CONN_PORT = port
         self.CONN_HOST = host
-
-
-    def connect(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((self.CONN_HOST, self.CONN_PORT))
         return self.sock
@@ -47,8 +47,8 @@ class ClientSide(object):
 if __name__ == "__main__":
     host = 'localhost'
     port = 777
-    cs = ClientSide(host, port)
-    cs.connect()
+    cs = ClientSide()
+    cs.connectTo(host, port)
     cs.clientRun()
         
         
