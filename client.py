@@ -5,26 +5,50 @@ Created on May 3, 2017
 '''
 import socket, time, multiprocessing, Queue
 
-CONN_PORT = 777
-CONN_HOST = 'localhost'
-BUFF_SIZ = 1024
+class ClientSide(object):
+    BUFF_SIZ = 1024
 
-def connect(host, port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((host, port))
-    return sock
+    def __init__(self, host, port):
+        self.CONN_PORT = port
+        self.CONN_HOST = host
 
-def clientRun(conn):
-    while True:
-        message = raw_input("Enter your message (type 'exit' to quit): ")
-        if message == "exit":
-            break
-        conn.send(message)
-        response = conn.recv(BUFF_SIZ)
-        print response
-        
+
+    def connect(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.CONN_HOST, self.CONN_PORT))
+        return self.sock
+
+    # send data by flag so that the receiving side can handle different data types
+    def sendData(self, flag):
+        # length of the flag
+        flag_length = len(flag)
+
+        # send data according to different flags
+        self.sock.send()
+
+    def clientRun(self):
+        while True:
+            message = raw_input("Enter your message (type 'exit' to quit): ")
+            # type exit to quit looping
+            if message == "exit":
+                break
+            self.sock.send(message)
+            response = self.sock.recv(self.BUFF_SIZ)
+            # print out the received message
+            print response
+
+    def login_auth(self, user, pw):
+        # set flag for data
+        flag = 'LAUTH'
+        # send username and password for user authentication
+        self.sendData()
+
+
 if __name__ == "__main__":
-    conn = connect(CONN_HOST, CONN_PORT)
-    clientRun(conn)
+    host = 'localhost'
+    port = 777
+    cs = ClientSide(host, port)
+    cs.connect()
+    cs.clientRun()
         
         
