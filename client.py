@@ -4,6 +4,7 @@ Created on May 3, 2017
 @author: findj
 '''
 import socket, time, multiprocessing, Queue
+from communication import send, receive
 
 class ClientSide(object):
     BUFF_SIZ = 1024
@@ -19,12 +20,12 @@ class ClientSide(object):
         return self.sock
 
     # send data by flag so that the receiving side can handle different data types
-    def sendData(self, flag):
+    def sendData(self, flag, data):
         # length of the flag
         flag_length = len(flag)
-
+        send(self.sock, flag, data)
         # send data according to different flags
-        self.sock.send()
+        # self.sock.send()
 
     def clientRun(self):
         while True:
@@ -32,8 +33,8 @@ class ClientSide(object):
             # type exit to quit looping
             if message == "exit":
                 break
-            self.sock.send(message)
-            response = self.sock.recv(self.BUFF_SIZ)
+            send(self.sock, message)
+            response = receive(self.sock)
             # print out the received message
             print response
 
@@ -43,12 +44,24 @@ class ClientSide(object):
         # send username and password for user authentication
         self.sendData()
 
+    def file_transfer(self, file_path):
+        # output = open('copy.txt', 'wb')
+        with open(file_path, 'rb') as f:
+            for line in f:
+                self.sendData('file', line)
+                # output.write(line)
+        # output.close()
+
+
 
 if __name__ == "__main__":
     host = 'localhost'
-    port = 777
+    port = 8888
     cs = ClientSide()
     cs.connectTo(host, port)
     cs.clientRun()
+
+    # cs.file_transfer("epoll.py")
+    # cs.file_transfer("C:\Users\/findj\Desktop\Fortinet_Technical_Test_Web.doc")
         
         
