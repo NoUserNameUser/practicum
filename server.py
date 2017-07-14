@@ -39,7 +39,7 @@ class ServerSide(object):
         # Return the printable name of the
         # client, given its socket...
         info = self.clientmap[client]
-        host, name = info[0][0], info[1]
+        host, name = info[0][0], str(info[1])
         return '@'.join((name, host))
 
     def serve(self):
@@ -63,20 +63,25 @@ class ServerSide(object):
                     # handle the server socket
                     client, address = self.server.accept()
                     print 'ServerSide: got connection %d from %s' % (client.fileno(), address)
+
                     # Read the login name
-                    cname = receive(client).split('NAME: ')[1]
+                    # cname = receive(client).split('NAME: ')[1]
+
+                    # first step authentication
+                    cid = self.authentication(client)
 
                     # Compute client name and send back
                     self.clients += 1
                     send(client, 'CLIENT: ' + str(address[0]))
                     inputs.append(client)
 
-                    self.clientmap[client] = (address, cname)
+                    self.clientmap[client] = (address, cid)
+
                     # Send joining information to other clients
-                    msg = '\n(Connected: New client (%d) from %s)' % (self.clients, self.getname(client))
-                    for o in self.outputs:
-                        # o.send(msg)
-                        send(o, msg)
+                    # msg = '\n(Connected: New client (%d) from %s)' % (self.clients, self.getname(client))
+                    # for o in self.outputs:
+                    #     # o.send(msg)
+                    #     send(o, msg)
 
                     self.outputs.append(client)
 
@@ -84,21 +89,34 @@ class ServerSide(object):
                 #     # handle standard input
                 #     junk = sys.stdin.readline()
                 #     running = 0
+
                 else:
                     # handle all other sockets
                     try:
                         # data = s.recv(BUFSIZ)
                         data = receive(s)
                         if data:
-                            # Send as new client's message...
-                            msg = '\n#[' + self.getname(s) + ']>> ' + data
-                            # Send data to all except ourselves
-                            for o in self.outputs:
-                                if o != s:
-                                    # o.send(msg)
-                                    send(o, msg)
+                            # switch for different flags in data
+                            options = {
+                                'finfo': self.file_info,
+                                'fcontent': self.file_receive,
+                            }
+                            # handle different data
+                            if ':' in data:
+                                flag = data.split(':')[0]
+                                # make sure flag is in options list
+                                if options.has_key(flag):
+                                    data = data.split(flag+':')[1]
+                                    options[flag](data)
+                                else:
+                                    msg = 'Invalid flag'
+                                    send(s, msg)
+                            else:
+                                msg = 'Handling data without a flag'
+                                print msg
+                                send(s, msg)
                         else:
-                            print 'chatserver: %d hung up' % s.fileno()
+                            print '%d hung up' % s.fileno()
                             self.clients -= 1
                             s.close()
                             inputs.remove(s)
@@ -116,6 +134,22 @@ class ServerSide(object):
                         self.outputs.remove(s)
 
         self.server.close()
+
+    def authentication(self, conn):
+        # receive client info in correct form
+        cinfo = receive(conn).split('\\')
+        # get cid based on client info
+        cid = 18283444
+        print cinfo[:]
+        return cid
+
+    def file_info(self, data):
+        print data.split('\\')
+
+    def file_receive(self, data):
+        # need a file buffer
+        print data
+
 
     # def recv_data(conn, addr):
     #     # need a while loop for receiving data

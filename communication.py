@@ -1,6 +1,8 @@
 import cPickle
 import socket
 import struct
+import random
+
 
 marshall = cPickle.dumps
 unmarshall = cPickle.loads
@@ -34,3 +36,10 @@ def encrypt(message):
 
 def decrypt(message):
     return message
+
+def passphrase_gen(length):
+    items = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    phrase = ""
+    for i in range(length):
+        phrase += random.choice(items)
+    return phrase

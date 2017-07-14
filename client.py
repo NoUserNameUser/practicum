@@ -3,7 +3,7 @@ Created on May 3, 2017
 
 @author: findj
 '''
-import socket, time, multiprocessing, Queue
+import socket, os, hashlib
 from communication import send, receive
 
 class ClientSide(object):
@@ -27,30 +27,55 @@ class ClientSide(object):
         # send data according to different flags
         # self.sock.send()
 
+    # This is the main run function of the client
     def clientRun(self):
-        while True:
-            message = raw_input("Enter your message (type 'exit' to quit): ")
-            # type exit to quit looping
-            if message == "exit":
-                break
-            send(self.sock, message)
-            response = receive(self.sock)
-            # print out the received message
-            print response
 
-    def login_auth(self, user, pw):
+        input = raw_input("Enter a username: ")
+        # first thing first
+        self.login_auth(input)
+        while True:
+            input = raw_input("Message (type 'exit' to quit): ")
+            # type exit to quit looping
+            if input == "exit":
+                break
+            elif input == "ftrans":
+                path = raw_input("enter file path: ")
+                self.file_transfer(path)
+            else:
+                send(self.sock, input)
+                response = receive(self.sock)
+            # print out the received message
+                print response
+
+
+    def login_auth(self, username):
         # set flag for data
-        flag = 'LAUTH'
+        message = username
         # send username and password for user authentication
-        self.sendData()
+        send(self.sock, message)
+        response = receive(self.sock)
+        print response
 
     def file_transfer(self, file_path):
         # output = open('copy.txt', 'wb')
-        with open(file_path, 'rb') as f:
-            for line in f:
-                self.sendData('file', line)
+        fname = os.path.basename(file_path)
+        data = 'finfo:' + fname + '\\' + self.md5Gen(file_path)
+        send(self.sock, data)
+
+        # with open(file_path, 'rb') as f:
+        #     for line in f:
+        #         data = 'file:' + line
+        #         send(self.sock, data)
                 # output.write(line)
         # output.close()
+
+    def md5Gen(self, file_path):
+        hash_md5 = hashlib.md5()
+        with open(file_path, 'rb') as f:
+            for line in f:
+                hash_md5.update(line)
+
+        return hash_md5.hexdigest()
 
 
 
