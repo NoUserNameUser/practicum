@@ -10,14 +10,16 @@ class ClientSide(object):
     BUFF_SIZ = 1024
 
     def __init__(self):
-        self.config = True
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def connectTo(self, host, port):
         self.CONN_PORT = port
         self.CONN_HOST = host
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((self.CONN_HOST, self.CONN_PORT))
         return self.sock
+
+    def disconnect(self):
+        self.sock.close()
 
     # send data by flag so that the receiving side can handle different data types
     def sendData(self, flag, data):
@@ -47,14 +49,19 @@ class ClientSide(object):
             # print out the received message
                 print response
 
+    def mainloop(self):
+        return
+
 
     def login_auth(self, username):
-        # set flag for data
-        message = username
         # send username and password for user authentication
-        send(self.sock, message)
+        send(self.sock, username)
         response = receive(self.sock)
-        print response
+        # True for good response and False for bad ones
+        if response:
+            return True
+        else:
+            return False
 
     def file_transfer(self, file_path):
         # output = open('copy.txt', 'wb')

@@ -3,9 +3,10 @@ Created on May 3, 2017
 
 @author: findj
 '''
-import socket, multiprocessing, time, signal, sys
+import socket, signal, sys
 import select
 from communication import send, receive
+from pymongo import MongoClient
 
 class ServerSide(object):
     CONN_LIMIT = 5
@@ -25,6 +26,9 @@ class ServerSide(object):
         # Trap keyboard interrupts
         signal.signal(signal.SIGINT, self.sighandler)
 
+        self.db_client = MongoClient('localhost', 27017)
+        self.db = self.db_client['FiSher']
+
     def sighandler(self, signum, frame):
         # Close the server
         print 'Shutting down server...'
@@ -35,7 +39,6 @@ class ServerSide(object):
         self.server.close()
 
     def getname(self, client):
-
         # Return the printable name of the
         # client, given its socket...
         info = self.clientmap[client]
@@ -51,37 +54,26 @@ class ServerSide(object):
 
         while running:
             try:
-                readable, writable, exceptional = select.select(inputs, self.outputs, inputs)
-            except select.error, e:
-                print e.args, e.message
-                break
+                readable, writable, exceptional = select.select(inputs, self.outputs, [])
+            except select.error:
+                print 'socket error'
 
             for s in readable:
 
                 if s == self.server:
-                    print 'Waiting for connections.'
                     # handle the server socket
                     client, address = self.server.accept()
                     print 'ServerSide: got connection %d from %s' % (client.fileno(), address)
 
-                    # Read the login name
-                    # cname = receive(client).split('NAME: ')[1]
-
                     # first step authentication
-                    cid = self.authentication(client)
+                    cid = self.authentication(client, address)
+                    if not cid:
+                        continue
 
                     # Compute client name and send back
                     self.clients += 1
-                    send(client, 'CLIENT: ' + str(address[0]))
                     inputs.append(client)
-
                     self.clientmap[client] = (address, cid)
-
-                    # Send joining information to other clients
-                    # msg = '\n(Connected: New client (%d) from %s)' % (self.clients, self.getname(client))
-                    # for o in self.outputs:
-                    #     # o.send(msg)
-                    #     send(o, msg)
 
                     self.outputs.append(client)
 
@@ -135,45 +127,50 @@ class ServerSide(object):
 
         self.server.close()
 
-    def authentication(self, conn):
+    def authentication(self, conn, addr):
         # receive client info in correct form
-        cinfo = receive(conn).split('\\')
-        # get cid based on client info
-        cid = 18283444
-        print cinfo[:]
+        try:
+            input = receive(conn)
+        except:
+            conn.close()
+            return False
+
+        if not input:
+            print "no input"
+            return False
+
+        print input
+        ip = addr[0]
+        print ip
+        user = {
+            'username': input,
+            'ipaddr': ip
+        }
+
+        result = self.db['users'].find(user)
+        for r in result:
+            print r
+
+        # if result:
+        #     print "User %s already exists, retrieving information." % (result[0])
+        #     send(conn, result)
+        # else:
+        #     print "Creating new user."
+        #     self.db['users'].insert(user)
+        #     send(conn, user)
+
+        # user info validation
+
+        cid = 3
         return cid
 
     def file_info(self, data):
-        print data.split('\\')
+        print data.split(',')
 
     def file_receive(self, data):
         # need a file buffer
         print data
 
-
-    # def recv_data(conn, addr):
-    #     # need a while loop for receiving data
-    #     while True:
-    #         data = conn.recv(BUFF_SIZ)
-    #         if data:
-    #             data_process(conn, data)
-    #         else:
-    #                 conn.close()
-    #                 print str(addr[0]), "disconnected"
-    #                 break
-    #
-    # # this function is for data processing and sending responses
-    # def data_process(conn, data):
-    #     print data
-    #     conn.send("received")
-    #
-    # def main_loop(sock):
-    #     while True:
-    #         print "ready for new connection"
-    #         conn, addr = sock.accept()
-    #         print "%s connected from port %s" % (str(addr[0]), str(addr[1]))
-    #
-    #         recv_data(conn, addr)
 
 if __name__ == "__main__":
     ss = ServerSide(8888).serve()
