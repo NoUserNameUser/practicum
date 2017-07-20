@@ -3,7 +3,7 @@ Created on May 3, 2017
 
 @author: findj
 '''
-import socket, os, hashlib
+import socket, os, hashlib, json
 from communication import send, receive
 
 class ClientSide(object):
@@ -11,6 +11,8 @@ class ClientSide(object):
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # dictionary to hold user info
+        self.user = {}
 
     def connectTo(self, host, port):
         self.CONN_PORT = port
@@ -59,9 +61,19 @@ class ClientSide(object):
         response = receive(self.sock)
         # True for good response and False for bad ones
         if response:
+            response = response.split('\\')
+            if response[0].split('LAUTH:')[1] == 'SUCCESS':
+                print response[1]
+                self.user = json.loads(response[1])
+                print self.user
+
             return True
         else:
+            print "false"
             return False
+
+    def logout(self):
+        return
 
     def file_transfer(self, file_path):
         # output = open('copy.txt', 'wb')

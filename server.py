@@ -67,6 +67,8 @@ class ServerSide(object):
 
                     # first step authentication
                     cid = self.authentication(client, address)
+
+                    # if authentication failed, keep moving on
                     if not cid:
                         continue
 
@@ -128,41 +130,42 @@ class ServerSide(object):
         self.server.close()
 
     def authentication(self, conn, addr):
+        usertable = self.db['users']
         # receive client info in correct form
-        try:
-            input = receive(conn)
-        except:
+        # try:
+        input = receive(conn)
+        if input:
+            print input
+            ip = addr[0]
+            user = {
+                'username': input,
+                'ipaddr': ip
+            }
+            result = usertable.find(user)
+            res_count = result.count()
+            msg = "LAUTH:SUCCESS\\"
+            if res_count == 0:
+                uid = usertable.insert(user)
+                print uid
+                print user
+                print "user added"
+                send(conn, msg+str(user))
+            else:
+                print "user exists"
+                uid = result[0]['_id']
+                print uid
+                print result[0]
+                send(conn, msg+str(result[0]))
+
+            return uid
+
+        else:
             conn.close()
             return False
+        # except:
+        #     conn.close()
+        #     return False
 
-        if not input:
-            print "no input"
-            return False
-
-        print input
-        ip = addr[0]
-        print ip
-        user = {
-            'username': input,
-            'ipaddr': ip
-        }
-
-        result = self.db['users'].find(user)
-        for r in result:
-            print r
-
-        # if result:
-        #     print "User %s already exists, retrieving information." % (result[0])
-        #     send(conn, result)
-        # else:
-        #     print "Creating new user."
-        #     self.db['users'].insert(user)
-        #     send(conn, user)
-
-        # user info validation
-
-        cid = 3
-        return cid
 
     def file_info(self, data):
         print data.split(',')
