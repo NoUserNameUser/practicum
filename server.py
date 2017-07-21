@@ -135,31 +135,32 @@ class ServerSide(object):
         # try:
         input = receive(conn)
         if input:
-            print input
+            try:
+                uname = input.split("LAUTH:")[1]
+            except:
+                return False
+
             ip = addr[0]
             user = {
-                'username': input,
+                'username': uname,
                 'ipaddr': ip
             }
             result = usertable.find(user)
             res_count = result.count()
-            msg = "LAUTH:SUCCESS\\"
+
             if res_count == 0:
+                print "new user added"
                 uid = usertable.insert(user)
-                print uid
-                print user
-                print "user added"
-                send(conn, msg+str(user))
+                send(conn, user)
             else:
                 print "user exists"
                 uid = result[0]['_id']
-                print uid
-                print result[0]
-                send(conn, msg+str(result[0]))
+                send(conn, result[0])
 
             return uid
 
         else:
+            print "%s connection has lost" % (addr[0])
             conn.close()
             return False
         # except:

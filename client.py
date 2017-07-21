@@ -3,7 +3,7 @@ Created on May 3, 2017
 
 @author: findj
 '''
-import socket, os, hashlib, json
+import socket, os, hashlib
 from communication import send, receive
 
 class ClientSide(object):
@@ -57,23 +57,22 @@ class ClientSide(object):
 
     def login_auth(self, username):
         # send username and password for user authentication
-        send(self.sock, username)
+        send(self.sock, "LAUTH:" + username)
         response = receive(self.sock)
         # True for good response and False for bad ones
         if response:
-            response = response.split('\\')
-            if response[0].split('LAUTH:')[1] == 'SUCCESS':
-                print response[1]
-                self.user = json.loads(response[1])
-                print self.user
-
+            self.user = response
+            print self.user['username']
             return True
         else:
-            print "false"
+            print "AUTHENTICATION_ERROR:No server response"
             return False
 
     def logout(self):
         return
+
+    def create_share_group(self):
+        send(self.sock, "NEWGROUP:" + self.auth_token)
 
     def file_transfer(self, file_path):
         # output = open('copy.txt', 'wb')

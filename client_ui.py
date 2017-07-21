@@ -42,15 +42,10 @@ class appGUI(tk.Tk):
             self.frames[F] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show_frame(StartPage)
+        # self.show_frame(StartPage)
+        self.show_frame(MainPage)
         self.app.connectTo(CONNECTION['host'], CONNECTION['port'])
-        # try:
-        #     self.app.connectTo(CONNECTION['host'], CONNECTION['port'])
-        # except socket.error, e:
-        #     print e
-        #     print "Unable to reach server."
-        #     # self.show_error(window, "Unable to reach the server.")
-        #     return
+
 
     # function to configure the main app window
     def win_conf(self, title):
@@ -128,8 +123,15 @@ class MainPage(tk.Frame):
         label = tk.Label(self, text="Welcome!", font=LARGE_FONT)
         label.pack(pady=10, padx=10)
 
+        new_group_button = tk.Button(self, text="Start new share group!", command=self.new_group_button_handler)
+        new_group_button.pack()
+
         button1 = tk.Button(self, text="Logout", command=lambda : controller.show_frame(StartPage))
         button1.pack()
+
+    def new_group_button_handler(self):
+        print "creating new share group.."
+
 
 # error page
 class ErrorPage(tk.Frame):
@@ -144,7 +146,6 @@ class ErrorPage(tk.Frame):
 
 # main function
 if __name__ == "__main__":
-    print CONNECTION
     app = appGUI()
     app.mainloop()
 
