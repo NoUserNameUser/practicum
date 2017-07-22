@@ -28,6 +28,7 @@ class ServerSide(object):
 
         self.db_client = MongoClient('localhost', 27017)
         self.db = self.db_client['FiSher']
+        self.usertable = self.db['users']
 
     def sighandler(self, signum, frame):
         # Close the server
@@ -38,12 +39,19 @@ class ServerSide(object):
 
         self.server.close()
 
-    def getname(self, client):
+    def getuid(self, client):
         # Return the printable name of the
         # client, given its socket...
         info = self.clientmap[client]
-        host, name = info[0][0], str(info[1])
-        return '@'.join((name, host))
+        host, uid = info[0][0], str(info[1])
+        return uid
+
+    def gethost(self, client):
+        # Return the printable name of the
+        # client, given its socket...
+        info = self.clientmap[client]
+        host, uid = info[0][0], str(info[1])
+        return host
 
     def serve(self):
 
@@ -90,10 +98,12 @@ class ServerSide(object):
                         # data = s.recv(BUFSIZ)
                         data = receive(s)
                         if data:
+                            uid = self.getuid(s)
                             # switch for different flags in data
                             options = {
-                                'finfo': self.file_info,
-                                'fcontent': self.file_receive,
+                                'FINFO': self.file_info,
+                                'FCONTENT': self.file_receive,
+                                'NEWGROUP': self.create_group,
                             }
                             # handle different data
                             if ':' in data:
@@ -101,7 +111,7 @@ class ServerSide(object):
                                 # make sure flag is in options list
                                 if options.has_key(flag):
                                     data = data.split(flag+':')[1]
-                                    options[flag](data)
+                                    options[flag](data, uid)
                                 else:
                                     msg = 'Invalid flag'
                                     send(s, msg)
@@ -117,7 +127,7 @@ class ServerSide(object):
                             self.outputs.remove(s)
 
                             # Send client leaving information to others
-                            msg = '\n(Hung up: Client from %s)' % self.getname(s)
+                            msg = '\n(Hung up: Client from %s)' % self.gethost(s)
                             for o in self.outputs:
                                 # o.send(msg)
                                 send(o, msg)
@@ -130,7 +140,6 @@ class ServerSide(object):
         self.server.close()
 
     def authentication(self, conn, addr):
-        usertable = self.db['users']
         # receive client info in correct form
         # try:
         input = receive(conn)
@@ -138,6 +147,7 @@ class ServerSide(object):
             try:
                 uname = input.split("LAUTH:")[1]
             except:
+                print "data received without flag"
                 return False
 
             ip = addr[0]
@@ -145,12 +155,12 @@ class ServerSide(object):
                 'username': uname,
                 'ipaddr': ip
             }
-            result = usertable.find(user)
+            result = self.usertable.find(user)
             res_count = result.count()
 
             if res_count == 0:
                 print "new user added"
-                uid = usertable.insert(user)
+                uid = self.usertable.insert(user)
                 send(conn, user)
             else:
                 print "user exists"
@@ -168,12 +178,16 @@ class ServerSide(object):
         #     return False
 
 
-    def file_info(self, data):
+    def file_info(self, data, uid):
         print data.split(',')
 
-    def file_receive(self, data):
+    def file_receive(self, data, uid):
         # need a file buffer
         print data
+
+    def create_group(self, data, uid):
+        if data:
+            self.usertable.update({'_id': uid}, {'share_groups':{}})
 
 
 if __name__ == "__main__":

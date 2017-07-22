@@ -37,13 +37,13 @@ class appGUI(tk.Tk):
 
         # manipulate multiple frames/pages of the app
         self.frames = {}
-        for F in (StartPage, MainPage):
+        for F in (StartPage, MainPage, GroupCreationPage):
             frame = F(window, self)
             self.frames[F] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
-        # self.show_frame(StartPage)
-        self.show_frame(MainPage)
+        self.show_frame(StartPage)
+        # self.show_frame(MainPage)
         self.app.connectTo(CONNECTION['host'], CONNECTION['port'])
 
 
@@ -109,28 +109,80 @@ class StartPage(tk.Frame):
         if uname:
             result = controller.app.login_auth(uname)
             if result:
+                controller.frames[MainPage].setWelcomeText(controller.app.user['username']+" #"+str(controller.app.user['_id']))
                 controller.show_frame(MainPage)
             else:
                 print "incorrect username"
 
     def entry_onchange(self, *args):
+        # button state changer
         self.submit.config(state=(tk.NORMAL if self.svar.get() else tk.DISABLED))
 
 # another page
 class MainPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        label = tk.Label(self, text="Welcome!", font=LARGE_FONT)
+        # ---- label ----
+        self.welcomeText = tk.StringVar()
+        label = tk.Label(self, textvariable=self.welcomeText, font=LARGE_FONT)
         label.pack(pady=10, padx=10)
 
-        new_group_button = tk.Button(self, text="Start new share group!", command=self.new_group_button_handler)
+        # ---- create new group button ----
+        new_group_button = tk.Button(self, text="Start new share group!", command=lambda : controller.show_frame(GroupCreationPage))
         new_group_button.pack()
 
-        button1 = tk.Button(self, text="Logout", command=lambda : controller.show_frame(StartPage))
+        # ---- logout button ----
+        button1 = tk.Button(self, text="Logout", command=lambda : self.logout(controller))
         button1.pack()
 
-    def new_group_button_handler(self):
-        print "creating new share group.."
+    def logout(self, controller):
+
+        return
+
+    def setWelcomeText(self, text):
+        self.welcomeText.set(text)
+
+class GroupCreationPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        label = tk.Label(self, text="Enter a name for your group.", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+        # ---- textbox to insert group name ----
+        self.svar = tk.StringVar()
+        self.svar.trace("w", self.entry_onchange)
+
+        self.textbox = tk.Entry(self, textvariable=self.svar)
+        # textbox is bind to Return button
+        self.textbox.bind('<Return>', lambda x: self.new_group_button_handler(controller))
+        self.textbox.pack(pady=10, padx=10)
+
+        # ---- submit button ----
+        self.create_group_button = tk.Button(self, text="Create!", command=lambda : self.new_group_button_handler(controller), state=tk.DISABLED)
+        self.create_group_button.pack()
+
+        # ---- back button ----
+        button1 = tk.Button(self, text="Back", command=lambda: controller.show_frame(MainPage))
+        button1.pack()
+
+    def new_group_button_handler(self, controller):
+        gname = self.textbox.get()
+        # gname = str.strip(gname)
+        if gname:
+            result = controller.app.create_share_group(gname)
+            if result:
+                controller.show_frame(MainPage)
+            else:
+                print "something is wrong when creating group."
+
+    def entry_onchange(self, *args):
+        # strip all white spaces on the left
+        input = self.svar.get()
+        input = input.lstrip()
+        self.svar.set(input)
+
+        # button state changer
+        self.create_group_button.config(state=(tk.NORMAL if self.svar.get() else tk.DISABLED))
 
 
 # error page

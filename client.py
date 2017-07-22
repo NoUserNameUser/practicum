@@ -71,13 +71,14 @@ class ClientSide(object):
     def logout(self):
         return
 
-    def create_share_group(self):
-        send(self.sock, "NEWGROUP:" + self.auth_token)
+    def create_share_group(self, gname):
+        print "sending request"
+        send(self.sock, "NEWGROUP:"+gname)
 
     def file_transfer(self, file_path):
         # output = open('copy.txt', 'wb')
         fname = os.path.basename(file_path)
-        data = 'finfo:' + fname + '\\' + self.md5Gen(file_path)
+        data = 'FINFO:' + fname + '\\' + self.md5Gen(file_path)
         send(self.sock, data)
 
         # with open(file_path, 'rb') as f:
