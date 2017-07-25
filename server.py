@@ -5,8 +5,9 @@ Created on May 3, 2017
 '''
 import socket, signal, sys
 import select
-from communication import send, receive
+from communication import send, receive, passphrase_gen
 from pymongo import MongoClient
+import datetime
 
 class ServerSide(object):
     CONN_LIMIT = 5
@@ -29,6 +30,7 @@ class ServerSide(object):
         self.db_client = MongoClient('localhost', 27017)
         self.db = self.db_client['FiSher']
         self.usertable = self.db['users']
+        self.grouptable = self.db['share_groups']
 
     def sighandler(self, signum, frame):
         # Close the server
@@ -111,7 +113,7 @@ class ServerSide(object):
                                 # make sure flag is in options list
                                 if options.has_key(flag):
                                     data = data.split(flag+':')[1]
-                                    options[flag](data, uid)
+                                    options[flag](s, data, uid)
                                 else:
                                     msg = 'Invalid flag'
                                     send(s, msg)
@@ -151,15 +153,18 @@ class ServerSide(object):
                 return False
 
             ip = addr[0]
-            user = {
-                'username': uname,
-                'ipaddr': ip
-            }
-            result = self.usertable.find(user)
+
+            result = self.usertable.find({'username':uname, 'ipaddr':ip})
             res_count = result.count()
 
             if res_count == 0:
                 print "new user added"
+                user = {
+                    'username': uname,
+                    'ipaddr': ip,
+                    'share_groups': [],
+                    'created': self.utc_time(),
+                }
                 uid = self.usertable.insert(user)
                 send(conn, user)
             else:
@@ -178,16 +183,40 @@ class ServerSide(object):
         #     return False
 
 
-    def file_info(self, data, uid):
+    def file_info(self, conn, data, uid):
         print data.split(',')
 
-    def file_receive(self, data, uid):
+    def file_receive(self, conn, data, uid):
         # need a file buffer
         print data
 
-    def create_group(self, data, uid):
+    def create_group(self, conn, data, uid):
         if data:
-            self.usertable.update({'_id': uid}, {'share_groups':{}})
+            new_group = {
+                'owner': uid,
+                'members': [],
+                'files':[],
+                'share_phrase':[],
+                'created':self.utc_time()
+            }
+            # insert new group data
+            sgid = self.grouptable.insert(new_group)
+
+            # update user data
+            self.usertable.update({'_id': uid}, {'share_groups':[sgid]})
+
+            # send back share phrase
+            send(conn, "NEWGROUP:SUCCESS")
+
+    def share_phrase_gen(self, gid): # takes group id and generate a share phrase
+        # generate one-time share phrase
+        share_phrase = passphrase_gen(6)
+        self.grouptable.find_one_and_update({'_id':gid}, {'$push':{'share_groups': share_phrase}})
+
+
+
+    def utc_time(self):
+        return datetime.datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")
 
 
 if __name__ == "__main__":

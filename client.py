@@ -74,6 +74,8 @@ class ClientSide(object):
     def create_share_group(self, gname):
         print "sending request"
         send(self.sock, "NEWGROUP:"+gname)
+        sp = receive(self.sock)
+        return sp
 
     def file_transfer(self, file_path):
         # output = open('copy.txt', 'wb')

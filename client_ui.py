@@ -115,6 +115,11 @@ class StartPage(tk.Frame):
                 print "incorrect username"
 
     def entry_onchange(self, *args):
+        # strip all white spaces on the left
+        input = self.svar.get()
+        input = input.lstrip()
+        self.svar.set(input)
+
         # button state changer
         self.submit.config(state=(tk.NORMAL if self.svar.get() else tk.DISABLED))
 
@@ -130,6 +135,9 @@ class MainPage(tk.Frame):
         # ---- create new group button ----
         new_group_button = tk.Button(self, text="Start new share group!", command=lambda : controller.show_frame(GroupCreationPage))
         new_group_button.pack()
+
+        # ---- Listbox to show share groups ----
+
 
         # ---- logout button ----
         button1 = tk.Button(self, text="Logout", command=lambda : self.logout(controller))
@@ -173,7 +181,7 @@ class GroupCreationPage(tk.Frame):
             if result:
                 controller.show_frame(MainPage)
             else:
-                print "something is wrong when creating group."
+                print "Unexpected error encountered when creating group."
 
     def entry_onchange(self, *args):
         # strip all white spaces on the left
