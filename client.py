@@ -11,8 +11,10 @@ class ClientSide(object):
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # dictionary to hold user info
-        self.user = {}
+
+        self.user = {} # dictionary to hold user info
+
+        self.groups = [] # array to hold share groups info
 
     def connectTo(self, host, port):
         self.CONN_PORT = port
@@ -25,8 +27,7 @@ class ClientSide(object):
 
     # send data by flag so that the receiving side can handle different data types
     def sendData(self, flag, data):
-        # length of the flag
-        flag_length = len(flag)
+        flag_length = len(flag) # length of the flag
         send(self.sock, flag, data)
         # send data according to different flags
         # self.sock.send()
@@ -35,12 +36,12 @@ class ClientSide(object):
     def clientRun(self):
 
         input = raw_input("Enter a username: ")
-        # first thing first
-        self.login_auth(input)
+
+        self.login_auth(input) # first thing first
         while True:
             input = raw_input("Message (type 'exit' to quit): ")
-            # type exit to quit looping
-            if input == "exit":
+
+            if input == "exit": # type exit to quit looping
                 break
             elif input == "ftrans":
                 path = raw_input("enter file path: ")
@@ -48,21 +49,18 @@ class ClientSide(object):
             else:
                 send(self.sock, input)
                 response = receive(self.sock)
-            # print out the received message
-                print response
+                print response # print out the received message
 
     def mainloop(self):
         return
 
-
+    # function to authenticate users
     def login_auth(self, username):
-        # send username and password for user authentication
-        send(self.sock, "LAUTH:" + username)
+        send(self.sock, "LAUTH:" + username) # send username and password for user authentication
         response = receive(self.sock)
-        # True for good response and False for bad ones
-        if response:
+        if response: # True for good response and False for bad ones
             self.user = response
-            print self.user['username']
+            self.get_groups()
             return True
         else:
             print "AUTHENTICATION_ERROR:No server response"
@@ -72,10 +70,31 @@ class ClientSide(object):
         return
 
     def create_share_group(self, gname):
-        print "sending request"
+        print "sending create_share_group request"
         send(self.sock, "NEWGROUP:"+gname)
         sp = receive(self.sock)
         return sp
+
+    def join_share_group(self, sharephrase):
+        print "sending join_share_group request"
+        send(self.sock, "JOINGROUP:"+sharephrase)
+        group_info = receive(self.sock)
+        return group_info
+
+    # function to get groups info and push the results into self.groups array
+    def get_groups(self):
+        if len(self.user['share_groups']) != 0: # checking if the user has any groups
+            for sg in self.user['share_groups']: # iterate through the groups
+                send(self.sock, "GETGROUP:"+str(sg)) # send request of each group id to get details info
+                result = receive(self.sock) # receive response
+                if result != 'NORES': # if the response is not 'no result' flag
+                    self.groups.append(result) # append result to the groups array
+                else:
+                    print "unexpected error when requesting group info"
+        else:
+            print "User has no groups yet"
+
+        return self.groups
 
     def file_transfer(self, file_path):
         # output = open('copy.txt', 'wb')

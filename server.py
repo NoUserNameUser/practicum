@@ -106,6 +106,9 @@ class ServerSide(object):
                                 'FINFO': self.file_info,
                                 'FCONTENT': self.file_receive,
                                 'NEWGROUP': self.create_group,
+                                'GETGROUP': self.get_group_info,
+                                'JOINGROUP': self.join_group,
+
                             }
                             # handle different data
                             if ':' in data:
@@ -194,26 +197,38 @@ class ServerSide(object):
         if data:
             new_group = {
                 'owner': uid,
+                'name': data,
                 'members': [],
                 'files':[],
-                'share_phrase':[],
+                'share_phrases':[],
                 'created':self.utc_time()
             }
             # insert new group data
             sgid = self.grouptable.insert(new_group)
 
             # update user data
-            self.usertable.update({'_id': uid}, {'share_groups':[sgid]})
+            self.usertable.update_one({'_id': uid}, {'$push':{'share_groups':sgid}})
 
             # send back share phrase
             send(conn, "NEWGROUP:SUCCESS")
 
+    def join_group(self, conn, data, uid):
+        if data:
+            result = self.grouptable.find_one({'_id':data})
+            if result:
+                send(conn, result)
+
     def share_phrase_gen(self, gid): # takes group id and generate a share phrase
-        # generate one-time share phrase
-        share_phrase = passphrase_gen(6)
-        self.grouptable.find_one_and_update({'_id':gid}, {'$push':{'share_groups': share_phrase}})
+        share_phrase = passphrase_gen(6)  # generate one-time share phrase
+        self.grouptable.update_one({'_id':gid}, {'$push':{'share_phrases': share_phrase}})
 
-
+    def get_group_info(self, conn, data, uid):
+        if data: # data contains group id
+            result = self.grouptable.find_one({'_id': int(data)}) # need to be careful with data types
+            if result:
+                send(conn, result)
+            else:
+                send(conn, 'NORES')
 
     def utc_time(self):
         return datetime.datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")

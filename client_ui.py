@@ -3,7 +3,7 @@ Created on May 6, 2017
 
 @author: findj
 '''
-import Tkinter as tk
+import Tkinter as tk, ttk
 from client import ClientSide
 import socket
 
@@ -23,6 +23,7 @@ class appGUI(tk.Tk):
         tk.Tk.iconbitmap(self, default="")
         self.win_conf("FiSher")
 
+
         # configure frame inside the window
         window = tk.Frame(self)
         window.pack(side="top", fill="both", expand=True)
@@ -32,12 +33,9 @@ class appGUI(tk.Tk):
         # alter window close event
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        # initialize content holders
-        self.user = {} # holds user info
-
         # manipulate multiple frames/pages of the app
         self.frames = {}
-        for F in (StartPage, MainPage, GroupCreationPage):
+        for F in (StartPage, MainPage, GroupCreationPage, GroupJoinPage):
             frame = F(window, self)
             self.frames[F] = frame
             frame.grid(row=0, column=0, sticky="nsew")
@@ -70,6 +68,10 @@ class appGUI(tk.Tk):
     def show_frame(self, cont):
         frame = self.frames[cont]
         frame.tkraise()
+
+    def get_frame(self, cont):
+        frame = self.frames[cont]
+        return frame
 
     # function to bring error page on top
     def show_error(self, parent, errMsg):
@@ -111,6 +113,8 @@ class StartPage(tk.Frame):
             if result:
                 controller.frames[MainPage].setWelcomeText(controller.app.user['username']+" #"+str(controller.app.user['_id']))
                 controller.show_frame(MainPage)
+                mp = controller.get_frame(MainPage)
+                mp.tree_generate(controller.app.groups)
             else:
                 print "incorrect username"
 
@@ -133,11 +137,13 @@ class MainPage(tk.Frame):
         label.pack(pady=10, padx=10)
 
         # ---- create new group button ----
-        new_group_button = tk.Button(self, text="Start new share group!", command=lambda : controller.show_frame(GroupCreationPage))
+        new_group_button = tk.Button(self, text="Create new share group!", command=lambda : controller.show_frame(GroupCreationPage))
         new_group_button.pack()
 
-        # ---- Listbox to show share groups ----
-
+        # ---- join group button ----
+        new_group_button = tk.Button(self, text="Join a group!",
+                                     command=lambda: controller.show_frame(GroupJoinPage))
+        new_group_button.pack()
 
         # ---- logout button ----
         button1 = tk.Button(self, text="Logout", command=lambda : self.logout(controller))
@@ -149,6 +155,17 @@ class MainPage(tk.Frame):
 
     def setWelcomeText(self, text):
         self.welcomeText.set(text)
+
+    def tree_generate(self, items):
+        # ---- tree view for groups ----
+        tree = ttk.Treeview(self)
+        for i in items:
+            print i
+            index = 0
+            tree.insert('', index, i['_id'], text=i['name'])
+            index += 1
+        tree.pack()
+        return
 
 class GroupCreationPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -192,6 +209,45 @@ class GroupCreationPage(tk.Frame):
         # button state changer
         self.create_group_button.config(state=(tk.NORMAL if self.svar.get() else tk.DISABLED))
 
+class GroupJoinPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        label = tk.Label(self, text="Enter share phrase", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+        # ---- textbox to insert group name ----
+        self.svar = tk.StringVar()
+        self.svar.trace("w", self.entry_onchange)
+
+        self.textbox = tk.Entry(self, textvariable=self.svar)
+        # textbox is bind to Return button
+        self.textbox.bind('<Return>', lambda x: self.join_group_button_handler(controller))
+        self.textbox.pack(pady=10, padx=10)
+
+        # ---- submit button ----
+        self.join_group_button = tk.Button(self, text="Join!",
+                                             command=lambda: self.join_group_button_handler(controller),
+                                             state=tk.DISABLED)
+        self.join_group_button.pack()
+
+        # ---- back button ----
+        button1 = tk.Button(self, text="Back", command=lambda: controller.show_frame(MainPage))
+        button1.pack()
+
+    def join_group_button_handler(self, controller):
+        sharephrase = self.textbox.get()
+        if sharephrase:
+            controller.app.join_share_group()
+
+
+    def entry_onchange(self, *args):
+        # strip all white spaces on the left
+        input = self.svar.get()
+        input = input.lstrip()
+        self.svar.set(input)
+
+        # button state changer
+        self.join_group_button.config(state=(tk.NORMAL if self.svar.get() else tk.DISABLED))
 
 # error page
 class ErrorPage(tk.Frame):
