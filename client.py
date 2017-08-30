@@ -10,16 +10,20 @@ class ClientSide(object):
     BUFF_SIZ = 1024
 
     def __init__(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.CONNECTION = {
+            'host' : "localhost",
+            'port' : 8888
+        }
 
         self.user = {} # dictionary to hold user info
 
         self.groups = [] # array to hold share groups info
 
-    def connectTo(self, host, port):
-        self.CONN_PORT = port
-        self.CONN_HOST = host
-        self.sock.connect((self.CONN_HOST, self.CONN_PORT))
+
+    def connectTo(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.CONNECTION['host'], self.CONNECTION['port']))
         return self.sock
 
     def disconnect(self):
@@ -67,12 +71,21 @@ class ClientSide(object):
             return False
 
     def logout(self):
-        return
+        send(self.sock, "LOGOUT:")
+        response = receive(self.sock)
+        if response:
+            self.disconnect()
+            self.connectTo()
+            return True
+        return False
 
     def create_share_group(self, gname):
         print "sending create_share_group request"
         send(self.sock, "NEWGROUP:"+gname)
         sp = receive(self.sock)
+        if sp == "NEWGROUP:SUCCESS":
+            # update self.groups
+            self.get_groups()
         return sp
 
     def join_share_group(self, sharephrase):
@@ -81,13 +94,23 @@ class ClientSide(object):
         group_info = receive(self.sock)
         return group_info
 
+    def user_update(self):
+        send(self.sock, "GETUSERINFO:"+str(self.user['_id']))
+        result = receive(self.sock)
+        if result:
+            self.user = result
+
     # function to get groups info and push the results into self.groups array
     def get_groups(self):
+        # update user first
+        self.user_update()
+        self.groups = [] # reload groups
+        # pull all the group info for user
         if len(self.user['share_groups']) != 0: # checking if the user has any groups
             for sg in self.user['share_groups']: # iterate through the groups
-                send(self.sock, "GETGROUP:"+str(sg)) # send request of each group id to get details info
+                send(self.sock, "GETGROUPS:"+str(sg)) # send request of each group id to get details info
                 result = receive(self.sock) # receive response
-                if result != 'NORES': # if the response is not 'no result' flag
+                if result: # if the response is not 'no result' flag
                     self.groups.append(result) # append result to the groups array
                 else:
                     print "unexpected error when requesting group info"
@@ -117,13 +140,16 @@ class ClientSide(object):
 
         return hash_md5.hexdigest()
 
+    def is_group_owner(self, gid):
+        if(self.user['_id'] == gid):
+            return True
+        return False
+
 
 
 if __name__ == "__main__":
-    host = 'localhost'
-    port = 8888
     cs = ClientSide()
-    cs.connectTo(host, port)
+    cs.connectTo()
     cs.clientRun()
 
     # cs.file_transfer("epoll.py")

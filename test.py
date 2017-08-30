@@ -29,7 +29,11 @@ groupstable = db['share_groups']
 
 # update user data
 # db['users'].update_one({'_id': 1234321}, {'$push':{'share_groups':345678}})
-# db['users'].remove()
+
+
+# usertable.remove()
+# groupstable.remove()
+
 results = usertable.find()
 print "-------------------- users --------------------"
 for r in results:

@@ -7,6 +7,7 @@ import socket, signal, sys
 import select
 from communication import send, receive, passphrase_gen
 from pymongo import MongoClient
+from bson import ObjectId
 import datetime
 
 class ServerSide(object):
@@ -45,26 +46,36 @@ class ServerSide(object):
         # Return the printable name of the
         # client, given its socket...
         info = self.clientmap[client]
-        host, uid = info[0][0], str(info[1])
-        return uid
+        return info[1]
 
     def gethost(self, client):
         # Return the printable name of the
         # client, given its socket...
         info = self.clientmap[client]
-        host, uid = info[0][0], str(info[1])
-        return host
+        return info[0][0]
+
+    def getport(self, client):
+        # Return the printable name of the
+        # client, given its socket...
+        info = self.clientmap[client]
+        return info[0][1]
+
+    def gethost_port(self, client):
+        # Return the printable name of the
+        # client, given its socket...
+        info = self.clientmap[client]
+        return info[0]
 
     def serve(self):
 
-        inputs = [self.server]
+        self.inputs = [self.server]
         self.outputs = []
 
         running = 1
 
         while running:
             try:
-                readable, writable, exceptional = select.select(inputs, self.outputs, [])
+                readable, writable, exceptional = select.select(self.inputs, self.outputs, [])
             except select.error:
                 print 'socket error'
 
@@ -73,7 +84,7 @@ class ServerSide(object):
                 if s == self.server:
                     # handle the server socket
                     client, address = self.server.accept()
-                    print 'ServerSide: got connection %d from %s' % (client.fileno(), address)
+                    print 'ServerSide: got connection %d from %s:%d' % (client.fileno(), address[0], address[1])
 
                     # first step authentication
                     cid = self.authentication(client, address)
@@ -84,7 +95,7 @@ class ServerSide(object):
 
                     # Compute client name and send back
                     self.clients += 1
-                    inputs.append(client)
+                    self.inputs.append(client)
                     self.clientmap[client] = (address, cid)
 
                     self.outputs.append(client)
@@ -103,12 +114,13 @@ class ServerSide(object):
                             uid = self.getuid(s)
                             # switch for different flags in data
                             options = {
+                                'GETUSERINFO': self.get_user_info,
                                 'FINFO': self.file_info,
                                 'FCONTENT': self.file_receive,
                                 'NEWGROUP': self.create_group,
-                                'GETGROUP': self.get_group_info,
+                                'GETGROUPS': self.get_group_info,
                                 'JOINGROUP': self.join_group,
-
+                                'LOGOUT': self.logout,
                             }
                             # handle different data
                             if ':' in data:
@@ -125,22 +137,18 @@ class ServerSide(object):
                                 print msg
                                 send(s, msg)
                         else:
-                            print '%d hung up' % s.fileno()
-                            self.clients -= 1
-                            s.close()
-                            inputs.remove(s)
-                            self.outputs.remove(s)
+                            print '%s hung up' % self.gethost(s)
+                            # remove
+                            self.sock_close(s)
 
                             # Send client leaving information to others
-                            msg = '\n(Hung up: Client from %s)' % self.gethost(s)
-                            for o in self.outputs:
-                                # o.send(msg)
-                                send(o, msg)
+                            # msg = '\n(Hung up: Client from %s)' % self.gethost(s)
+                            # for o in self.outputs:
+                            #     send(o, msg)
 
                     except socket.error, e:
                         # Remove
-                        inputs.remove(s)
-                        self.outputs.remove(s)
+                        self.sock_close(s)
 
         self.server.close()
 
@@ -175,16 +183,47 @@ class ServerSide(object):
                 uid = result[0]['_id']
                 send(conn, result[0])
 
+            self.login(uid)
+
             return uid
 
         else:
             print "%s connection has lost" % (addr[0])
-            conn.close()
-            return False
+            self.sock_close(conn)
         # except:
         #     conn.close()
         #     return False
 
+    def sock_close(self, sock):
+        self.clients -= 1
+        sock.close()
+        try:
+            # sometimes if the socket is not in the list, error will raise
+            self.inputs.remove(sock)
+            self.outputs.remove(sock)
+        except:
+            # we can just ignore the error since socket closes anyway
+            pass
+
+    def login(self, uid):
+        self.usertable.update_one({'_id': uid}, {'$set': {'login': {'online': True, 'last_login':self.utc_time()}}})
+
+    def logout(self, conn, data, uid):
+        result = self.usertable.update_one({'_id': uid}, {'$set': {'login': {'online': False, 'last_logout': self.utc_time()}}})
+        if result:
+            print '%s:%d hung up' % self.gethost_port(conn)
+            send(conn, True)
+            # remove
+            self.sock_close(conn)
+        else:
+            send(conn, False)
+
+    def get_user_info(self, conn, data, uid):
+        print "get user info function called"
+        if data: # uid, need to cast
+            result = self.usertable.find_one({'_id': ObjectId(data)})
+            print result
+            send(conn, result)
 
     def file_info(self, conn, data, uid):
         print data.split(',')
@@ -194,7 +233,10 @@ class ServerSide(object):
         print data
 
     def create_group(self, conn, data, uid):
-        if data:
+        if data: # group name, no cast
+            # TODO check if the group name exists
+
+
             new_group = {
                 'owner': uid,
                 'name': data,
@@ -205,15 +247,14 @@ class ServerSide(object):
             }
             # insert new group data
             sgid = self.grouptable.insert(new_group)
-
+            print "sgid", sgid
             # update user data
-            self.usertable.update_one({'_id': uid}, {'$push':{'share_groups':sgid}})
-
+            result = self.usertable.update_one({'_id': uid}, {'$push':{'share_groups':ObjectId(sgid)}})
             # send back share phrase
             send(conn, "NEWGROUP:SUCCESS")
 
     def join_group(self, conn, data, uid):
-        if data:
+        if data: # passphrase,
             result = self.grouptable.find_one({'_id':data})
             if result:
                 send(conn, result)
@@ -223,12 +264,9 @@ class ServerSide(object):
         self.grouptable.update_one({'_id':gid}, {'$push':{'share_phrases': share_phrase}})
 
     def get_group_info(self, conn, data, uid):
-        if data: # data contains group id
-            result = self.grouptable.find_one({'_id': int(data)}) # need to be careful with data types
-            if result:
-                send(conn, result)
-            else:
-                send(conn, 'NORES')
+        if data: # gid, cast
+            result = self.grouptable.find_one({'_id': ObjectId(data)}) # need to be careful with data types
+            send(conn, result)
 
     def utc_time(self):
         return datetime.datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")

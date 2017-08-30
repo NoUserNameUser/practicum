@@ -8,10 +8,6 @@ from client import ClientSide
 import socket
 
 LARGE_FONT = ("Verdana", 12)
-CONNECTION = {
-    'host' : "localhost",
-    'port' : 8888
-}
 
 class appGUI(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -42,7 +38,7 @@ class appGUI(tk.Tk):
 
         self.show_frame(StartPage)
         # self.show_frame(MainPage)
-        self.app.connectTo(CONNECTION['host'], CONNECTION['port'])
+        self.app.connectTo()
 
 
     # function to configure the main app window
@@ -113,8 +109,10 @@ class StartPage(tk.Frame):
             if result:
                 controller.frames[MainPage].setWelcomeText(controller.app.user['username']+" #"+str(controller.app.user['_id']))
                 controller.show_frame(MainPage)
+
+                # feed group information to the treebox in main page
                 mp = controller.get_frame(MainPage)
-                mp.tree_generate(controller.app.groups)
+                mp.tree_insert(controller.app.groups)
             else:
                 print "incorrect username"
 
@@ -145,27 +143,62 @@ class MainPage(tk.Frame):
                                      command=lambda: controller.show_frame(GroupJoinPage))
         new_group_button.pack()
 
+        # ---- Treeview groups box ----
+        self.tree = ttk.Treeview(self)
+        self.tree.bind("<Button-3>", self.do_popup)
+        self.tree.pack()
+
         # ---- logout button ----
         button1 = tk.Button(self, text="Logout", command=lambda : self.logout(controller))
         button1.pack()
 
     def logout(self, controller):
-
-        return
+        if controller.app.logout():
+            controller.show_frame(StartPage)
+        else:
+            print 'Unexpected error encountered when logging out.'
 
     def setWelcomeText(self, text):
         self.welcomeText.set(text)
 
-    def tree_generate(self, items):
+    def tree_insert(self, items):
         # ---- tree view for groups ----
-        tree = ttk.Treeview(self)
+        # tree = ttk.Treeview(self)
+        self.tree_del_all_child()
         for i in items:
             print i
             index = 0
-            tree.insert('', index, i['_id'], text=i['name'])
+            self.tree.insert('', index, i['_id'], text=i['name'])
             index += 1
-        tree.pack()
-        return
+
+    def tree_del_all_child(self):
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+
+    def group_control_menu(self):
+        self.popup = tk.Menu(self, tearoff=0)
+        self.popup.add_command(label="Create share phrase")
+        self.popup.add_command(label="Upload files")
+        # self.popup.add_separator()
+
+    def file_control_menu(self):
+        self.popup = tk.Menu(self, tearoff=0)
+        self.popup.add_command(label="Download")
+
+    def do_popup(self, e):
+        # display the popup menu
+        iid = self.tree.identify_row(e.y)
+        if iid:
+            pid = self.tree.parent(iid)
+            if pid:  # a child item is selected
+                self.file_control_menu()
+            else:  # top level is selected, populate group menu items
+                self.group_control_menu()
+
+            self.tree.selection_set(iid)
+            self.popup.post(e.x_root, e.y_root)
+        else:
+            pass
 
 class GroupCreationPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -192,11 +225,15 @@ class GroupCreationPage(tk.Frame):
 
     def new_group_button_handler(self, controller):
         gname = self.textbox.get()
-        # gname = str.strip(gname)
+        # TODO handle duplicate group names
         if gname:
             result = controller.app.create_share_group(gname)
             if result:
                 controller.show_frame(MainPage)
+
+                # update group information to the treebox in main page
+                mp = controller.get_frame(MainPage)
+                mp.tree_insert(controller.app.groups)
             else:
                 print "Unexpected error encountered when creating group."
 
@@ -237,7 +274,11 @@ class GroupJoinPage(tk.Frame):
     def join_group_button_handler(self, controller):
         sharephrase = self.textbox.get()
         if sharephrase:
-            controller.app.join_share_group()
+            result = controller.app.join_share_group()
+            if result:
+                controller.show_frame(MainPage)
+            else:
+                print "Unexpected error encountered when joining group."
 
 
     def entry_onchange(self, *args):
