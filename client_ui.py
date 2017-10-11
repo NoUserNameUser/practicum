@@ -5,6 +5,7 @@ Created on May 6, 2017
 '''
 import Tkinter as tk, ttk
 from client import ClientSide
+from tkFileDialog import askopenfilename
 import socket
 
 LARGE_FONT = ("Verdana", 12)
@@ -128,6 +129,7 @@ class StartPage(tk.Frame):
 # another page
 class MainPage(tk.Frame):
     def __init__(self, parent, controller):
+        self.controller = controller
         tk.Frame.__init__(self, parent)
         # ---- label ----
         self.welcomeText = tk.StringVar()
@@ -175,10 +177,10 @@ class MainPage(tk.Frame):
         for row in self.tree.get_children():
             self.tree.delete(row)
 
-    def group_control_menu(self):
+    def group_control_menu(self, gid):
         self.popup = tk.Menu(self, tearoff=0)
         self.popup.add_command(label="Create share phrase")
-        self.popup.add_command(label="Upload files")
+        self.popup.add_command(label="Upload files", command=lambda : self.file_to_group(gid))
         # self.popup.add_separator()
 
     def file_control_menu(self):
@@ -193,12 +195,19 @@ class MainPage(tk.Frame):
             if pid:  # a child item is selected
                 self.file_control_menu()
             else:  # top level is selected, populate group menu items
-                self.group_control_menu()
+                self.group_control_menu(iid)
 
             self.tree.selection_set(iid)
             self.popup.post(e.x_root, e.y_root)
         else:
             pass
+
+    def file_to_group(self, gid):
+        fpath = askopenfilename()
+        # file copy and do encryption
+        # upload to server
+        print fpath
+        self.controller.app.file_transfer(fpath)
 
 class GroupCreationPage(tk.Frame):
     def __init__(self, parent, controller):

@@ -122,15 +122,16 @@ class ClientSide(object):
     def file_transfer(self, file_path):
         # output = open('copy.txt', 'wb')
         fname = os.path.basename(file_path)
+        # TODO: do encryption
         data = 'FINFO:' + fname + '\\' + self.md5Gen(file_path)
         send(self.sock, data)
 
-        # with open(file_path, 'rb') as f:
-        #     for line in f:
-        #         data = 'file:' + line
-        #         send(self.sock, data)
-                # output.write(line)
-        # output.close()
+        with open(file_path, 'rb') as f:
+            send('FSTRT:')
+            for line in f:
+                data = 'FDATA:' + line
+                send(self.sock, data)
+            send('FFN:')
 
     def md5Gen(self, file_path):
         hash_md5 = hashlib.md5()

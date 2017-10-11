@@ -116,11 +116,13 @@ class ServerSide(object):
                             options = {
                                 'GETUSERINFO': self.get_user_info,
                                 'FINFO': self.file_info,
-                                'FCONTENT': self.file_receive,
+                                'FDATA': self.file_receive,
                                 'NEWGROUP': self.create_group,
                                 'GETGROUPS': self.get_group_info,
                                 'JOINGROUP': self.join_group,
                                 'LOGOUT': self.logout,
+                                'FSTRT': self.file_open,
+                                'FFN': self.file_close,
                             }
                             # handle different data
                             if ':' in data:
@@ -226,11 +228,23 @@ class ServerSide(object):
             send(conn, result)
 
     def file_info(self, conn, data, uid):
-        print data.split(',')
+        if data:
+            finfo = data.split('\\')
+            print finfo
+            self.file_name = finfo[0]
+            self.file_md5 = finfo[1]
 
     def file_receive(self, conn, data, uid):
         # need a file buffer
         print data
+
+    def file_open(self, conn, data, uid):
+        if data:
+            self.fdescriptor = open(self.file_name, 'wb')
+
+    def file_close(self, conn, data, uid):
+        if data:
+            self.fdescriptor.close()
 
     def create_group(self, conn, data, uid):
         if data: # group name, no cast
