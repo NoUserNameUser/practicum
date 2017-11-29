@@ -127,11 +127,16 @@ class ClientSide(object):
         send(self.sock, data)
 
         with open(file_path, 'rb') as f:
-            send('FSTRT:')
+            send(self.sock, 'FSTRT:')
             for line in f:
                 data = 'FDATA:' + line
                 send(self.sock, data)
-            send('FFN:')
+            send(self.sock, 'FFN:')
+
+    def make_phrase(self): # function to make sharing phrase for a group
+        send(self.sock, 'MKPHRASE:')
+        phrase = receive(self.sock)
+        return phrase
 
     def md5Gen(self, file_path):
         hash_md5 = hashlib.md5()

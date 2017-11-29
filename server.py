@@ -123,6 +123,7 @@ class ServerSide(object):
                                 'LOGOUT': self.logout,
                                 'FSTRT': self.file_open,
                                 'FFN': self.file_close,
+                                'MKPHRASE': self.make_phrase,
                             }
                             # handle different data
                             if ':' in data:
@@ -237,13 +238,17 @@ class ServerSide(object):
     def file_receive(self, conn, data, uid):
         # need a file buffer
         print data
+        self.fdescriptor.write(data)
 
     def file_open(self, conn, data, uid):
-        if data:
-            self.fdescriptor = open(self.file_name, 'wb')
+        if not data:
+            print 'in file_open if data'
+            path = "files/"
+            self.fdescriptor = open(path + self.file_name + '_' + self.file_md5, 'wb')
+            print self.fdescriptor
 
     def file_close(self, conn, data, uid):
-        if data:
+        if not data:
             self.fdescriptor.close()
 
     def create_group(self, conn, data, uid):
@@ -281,6 +286,12 @@ class ServerSide(object):
         if data: # gid, cast
             result = self.grouptable.find_one({'_id': ObjectId(data)}) # need to be careful with data types
             send(conn, result)
+
+    def make_phrase(self, conn, data, uid):
+        if not data:
+            # do something
+            print 'hi'
+        return
 
     def utc_time(self):
         return datetime.datetime.utcnow().strftime("%Y/%m/%d %H:%M:%S")
