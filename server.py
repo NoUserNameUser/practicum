@@ -16,8 +16,11 @@ class ServerSide(object):
 
     def __init__(self, port):
         self.clients = 0
+        self.authenticated = 0
         # Client map
         self.clientmap = {}
+        # file map
+        self.files = {}
         # Output socket list
         self.outputs = []
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,6 +35,8 @@ class ServerSide(object):
         self.db = self.db_client['FiSher']
         self.usertable = self.db['users']
         self.grouptable = self.db['share_groups']
+        self.phrasetable = self.db['share_phrases']
+        self.filestable = self.db['files']
 
     def sighandler(self, signum, frame):
         # Close the server
@@ -87,16 +92,17 @@ class ServerSide(object):
                     print 'ServerSide: got connection %d from %s:%d' % (client.fileno(), address[0], address[1])
 
                     # first step authentication
-                    cid = self.authentication(client, address)
+                    # cid = self.authentication(client, address)
 
                     # if authentication failed, keep moving on
-                    if not cid:
-                        continue
+                    # if not cid:
+                    #     continue
 
                     # Compute client name and send back
                     self.clients += 1
+
                     self.inputs.append(client)
-                    self.clientmap[client] = (address, cid)
+                    self.clientmap[client] = (address, False)
 
                     self.outputs.append(client)
 
@@ -112,33 +118,36 @@ class ServerSide(object):
                         data = receive(s)
                         if data:
                             uid = self.getuid(s)
-                            # switch for different flags in data
-                            options = {
-                                'GETUSERINFO': self.get_user_info,
-                                'FINFO': self.file_info,
-                                'FDATA': self.file_receive,
-                                'NEWGROUP': self.create_group,
-                                'GETGROUPS': self.get_group_info,
-                                'JOINGROUP': self.join_group,
-                                'LOGOUT': self.logout,
-                                'FSTRT': self.file_open,
-                                'FFN': self.file_close,
-                                'MKPHRASE': self.make_phrase,
-                            }
-                            # handle different data
-                            if ':' in data:
-                                flag = data.split(':')[0]
-                                # make sure flag is in options list
-                                if options.has_key(flag):
-                                    data = data.split(flag+':')[1]
-                                    options[flag](s, data, uid)
+                            if uid:
+                                # switch for different flags in data
+                                options = {
+                                    'GETUSERINFO': self.get_user_info,
+                                    'FINFO': self.file_info,
+                                    'FDATA': self.file_receive,
+                                    'NEWGROUP': self.create_group,
+                                    'GETGROUPS': self.get_group_info,
+                                    'JOINGROUP': self.join_group,
+                                    'LOGOUT': self.logout,
+                                    'FSTRT': self.file_open,
+                                    'FFN': self.file_close,
+                                    'MKPHRASE': self.make_phrase,
+                                }
+                                # handle different data
+                                if ':' in data:
+                                    flag = data.split(':')[0]
+                                    # make sure flag is in options list
+                                    if options.has_key(flag):
+                                        data = data.split(flag+':')[1]
+                                        options[flag](s, data, uid)
+                                    else:
+                                        msg = 'Invalid flag'
+                                        send(s, msg)
                                 else:
-                                    msg = 'Invalid flag'
+                                    msg = 'Handling data without a flag'
+                                    print msg
                                     send(s, msg)
                             else:
-                                msg = 'Handling data without a flag'
-                                print msg
-                                send(s, msg)
+                                self.authentication(s, data, self.clientmap[s][0])
                         else:
                             print '%s hung up' % self.gethost(s)
                             # remove
@@ -155,15 +164,14 @@ class ServerSide(object):
 
         self.server.close()
 
-    def authentication(self, conn, addr):
+    def authentication(self, conn, data, addr):
         # receive client info in correct form
         # try:
-        input = receive(conn)
-        if input:
+        if data:
             try:
-                uname = input.split("LAUTH:")[1]
+                uname = data.split("LAUTH:")[1]
             except:
-                print "data received without flag"
+                print "incorrect authentication"
                 return False
 
             ip = addr[0]
@@ -180,12 +188,13 @@ class ServerSide(object):
                     'created': self.utc_time(),
                 }
                 uid = self.usertable.insert(user)
-                send(conn, user)
             else:
                 print "user exists"
+                user = result[0]
                 uid = result[0]['_id']
-                send(conn, result[0])
 
+            self.clientmap[conn] = (addr, uid) #map uid to corresponding client
+            send(conn, user)
             self.login(uid)
 
             return uid
@@ -208,9 +217,11 @@ class ServerSide(object):
             # we can just ignore the error since socket closes anyway
             pass
 
+    # set user login
     def login(self, uid):
         self.usertable.update_one({'_id': uid}, {'$set': {'login': {'online': True, 'last_login':self.utc_time()}}})
 
+    # set user logout
     def logout(self, conn, data, uid):
         result = self.usertable.update_one({'_id': uid}, {'$set': {'login': {'online': False, 'last_logout': self.utc_time()}}})
         if result:
@@ -231,25 +242,42 @@ class ServerSide(object):
     def file_info(self, conn, data, uid):
         if data:
             finfo = data.split('\\')
-            print finfo
-            self.file_name = finfo[0]
-            self.file_md5 = finfo[1]
+            if conn not in self.files:
+                self.files[conn] = {}
+            self.files[conn]['file_name'] = finfo[0]
+            self.files[conn]['md5'] = finfo[1]
+            self.files[conn]['gid'] = ObjectId(finfo[2])
+            file = {
+                'md5': self.files[conn]['md5'],
+                'file_name': self.files[conn]['file_name'],
+                'related_group': self.files[conn]['gid'],
+                'created': self.utc_time()
+            }
+            fid = self.filestable.insert(file)
+            self.grouptable.update_one({'_id': self.files[conn]['gid']}, {'$push': {'files': fid}})
+
+            # self.file_name = finfo[0]
+            # self.file_md5 = finfo[1]
 
     def file_receive(self, conn, data, uid):
         # need a file buffer
-        print data
-        self.fdescriptor.write(data)
+        # print
+        self.files[conn]['fd'].write(data)
 
     def file_open(self, conn, data, uid):
         if not data:
             print 'in file_open if data'
-            path = "files/"
-            self.fdescriptor = open(path + self.file_name + '_' + self.file_md5, 'wb')
+            path = "files/" + self.files[conn]['file_name'] + '_' + self.files[conn]['md5']
+            self.fdescriptor = open(path, 'wb')
             print self.fdescriptor
+            self.files[conn]['fd'] = self.fdescriptor
+
 
     def file_close(self, conn, data, uid):
         if not data:
-            self.fdescriptor.close()
+            print 'close file ' + self.files[conn]['file_name']
+            self.files[conn]['fd'].close()
+            del self.files[conn]
 
     def create_group(self, conn, data, uid):
         if data: # group name, no cast
@@ -280,7 +308,18 @@ class ServerSide(object):
 
     def share_phrase_gen(self, gid): # takes group id and generate a share phrase
         share_phrase = passphrase_gen(6)  # generate one-time share phrase
-        self.grouptable.update_one({'_id':gid}, {'$push':{'share_phrases': share_phrase}})
+        result = self.phrasetable.find({'phrase': share_phrase})
+        if result.count() == 0:
+            phrase = {
+                'phrase': share_phrase,
+                'group': gid,
+                'created': self.utc_time(),
+            }
+            phrase_id = self.phrasetable.insert(phrase)
+            self.grouptable.update_one({'_id':gid}, {'$push':{'share_phrases': phrase_id}})
+            return phrase
+        else:
+            self.share_phrase_gen(gid)
 
     def get_group_info(self, conn, data, uid):
         if data: # gid, cast
@@ -288,9 +327,10 @@ class ServerSide(object):
             send(conn, result)
 
     def make_phrase(self, conn, data, uid):
-        if not data:
+        if data:
             # do something
-            print 'hi'
+            phrase = self.share_phrase_gen(data)
+            send(conn, phrase)
         return
 
     def utc_time(self):

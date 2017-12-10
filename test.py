@@ -14,6 +14,8 @@ print db.collection_names()
 
 usertable = db['users']
 groupstable = db['share_groups']
+phrasetable = db['share_phrases']
+filestable = db['files']
 
 # new_group = {
 #     '_id': 345678,
@@ -33,6 +35,8 @@ groupstable = db['share_groups']
 
 # usertable.remove()
 # groupstable.remove()
+# filestable.remove()
+# phrasetable.remove()
 
 results = usertable.find()
 print "-------------------- users --------------------"
@@ -41,6 +45,16 @@ for r in results:
 
 results = groupstable.find()
 print "-------------------- groups --------------------"
+for r in results:
+    print r
+
+results = filestable.find()
+print "-------------------- files --------------------"
+for r in results:
+    print r
+
+results = phrasetable.find()
+print "-------------------- phrases --------------------"
 for r in results:
     print r
 

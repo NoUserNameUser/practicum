@@ -170,7 +170,12 @@ class MainPage(tk.Frame):
         for i in items:
             print i
             index = 0
-            self.tree.insert('', index, i['_id'], text=i['name'])
+            g = self.tree.insert('', index, i['_id'], text=i['name']) # display the list of group
+            for f in i['files']:
+                print f
+                findex = 0
+                self.tree.insert(g, findex, f['file_name'], text=f['file_name']) # display the list of the files
+                findex += 1
             index += 1
 
     def tree_del_all_child(self):
@@ -179,7 +184,7 @@ class MainPage(tk.Frame):
 
     def group_control_menu(self, gid):
         self.popup = tk.Menu(self, tearoff=0)
-        self.popup.add_command(label="Create share phrase")
+        self.popup.add_command(label="Create share phrase", command=lambda : self.create_share_phrase(gid))
         self.popup.add_command(label="Upload files", command=lambda : self.file_to_group(gid))
         # self.popup.add_separator()
 
@@ -207,7 +212,11 @@ class MainPage(tk.Frame):
         # file copy and do encryption
         # upload to server
         print fpath
-        self.controller.app.file_transfer(fpath)
+        self.controller.app.file_transfer(fpath, gid)
+        self.tree_insert(self.controller.app.groups)
+
+    def create_share_phrase(self, gid):
+        self.controller.app.make_phrase(gid)
 
 class GroupCreationPage(tk.Frame):
     def __init__(self, parent, controller):

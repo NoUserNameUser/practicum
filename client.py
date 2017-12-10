@@ -7,7 +7,7 @@ import socket, os, hashlib
 from communication import send, receive
 
 class ClientSide(object):
-    BUFF_SIZ = 1024
+    R_BUFF_SIZ = 16777216 # 16M
 
     def __init__(self):
 
@@ -15,6 +15,7 @@ class ClientSide(object):
             'host' : "localhost",
             'port' : 8888
         }
+
 
         self.user = {} # dictionary to hold user info
 
@@ -119,29 +120,34 @@ class ClientSide(object):
 
         return self.groups
 
-    def file_transfer(self, file_path):
+    def file_transfer(self, file_path, gid):
         # output = open('copy.txt', 'wb')
         fname = os.path.basename(file_path)
         # TODO: do encryption
-        data = 'FINFO:' + fname + '\\' + self.md5Gen(file_path)
+        data = 'FINFO:' + fname + '\\' + self.md5Gen(file_path) + '\\' + gid
         send(self.sock, data)
 
         with open(file_path, 'rb') as f:
+            count = 0
             send(self.sock, 'FSTRT:')
-            for line in f:
+            for line in iter(lambda: f.read(self.R_BUFF_SIZ), ""):
                 data = 'FDATA:' + line
+                print count
+                count = count + 1
                 send(self.sock, data)
+            print 'file ended'
             send(self.sock, 'FFN:')
+        self.get_groups()
 
-    def make_phrase(self): # function to make sharing phrase for a group
-        send(self.sock, 'MKPHRASE:')
+    def make_phrase(self, gid): # function to make sharing phrase for a group
+        send(self.sock, 'MKPHRASE:'+gid)
         phrase = receive(self.sock)
         return phrase
 
     def md5Gen(self, file_path):
         hash_md5 = hashlib.md5()
         with open(file_path, 'rb') as f:
-            for line in f:
+            for line in iter(lambda: f.read(self.R_BUFF_SIZ), ""):
                 hash_md5.update(line)
 
         return hash_md5.hexdigest()
