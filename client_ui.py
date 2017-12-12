@@ -6,6 +6,7 @@ Created on May 6, 2017
 import Tkinter as tk, ttk
 from client import ClientSide
 from tkFileDialog import askopenfilename
+import tkMessageBox
 import socket
 
 LARGE_FONT = ("Verdana", 12)
@@ -174,7 +175,7 @@ class MainPage(tk.Frame):
             for f in i['files']:
                 print f
                 findex = 0
-                self.tree.insert(g, findex, f['file_name'], text=f['file_name']) # display the list of the files
+                self.tree.insert(g, findex, f['f_id'], text=f['file_name']) # display the list of the files
                 findex += 1
             index += 1
 
@@ -211,12 +212,16 @@ class MainPage(tk.Frame):
         fpath = askopenfilename()
         # file copy and do encryption
         # upload to server
-        print fpath
         self.controller.app.file_transfer(fpath, gid)
         self.tree_insert(self.controller.app.groups)
 
     def create_share_phrase(self, gid):
-        self.controller.app.make_phrase(gid)
+        result = self.controller.app.make_phrase(gid)
+        msg = result['phrase']
+        self.clipboard_clear()
+        self.clipboard_append(msg)
+        msg = "One-time share phrase "+msg+" created. It's in your clipboard now! Go ahead and paste it to your friend."
+        tkMessageBox.showinfo("Your phrase", msg)
 
 class GroupCreationPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -292,11 +297,17 @@ class GroupJoinPage(tk.Frame):
     def join_group_button_handler(self, controller):
         sharephrase = self.textbox.get()
         if sharephrase:
-            result = controller.app.join_share_group()
-            if result:
+            result = controller.app.join_share_group(sharephrase)
+            if result == 't':
+                # update group information to the treebox in main page
+                mp = controller.get_frame(MainPage)
+                mp.tree_insert(controller.app.groups)
                 controller.show_frame(MainPage)
+            elif result == 'e':
+                tkMessageBox.showinfo("Alert", "You've already joined this group!")
+                print "User already joined this group"
             else:
-                print "Unexpected error encountered when joining group."
+                tkMessageBox.showinfo("Alert", "Incorrect share phrase!")
 
 
     def entry_onchange(self, *args):

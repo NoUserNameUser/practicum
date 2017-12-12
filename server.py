@@ -254,7 +254,10 @@ class ServerSide(object):
                 'created': self.utc_time()
             }
             fid = self.filestable.insert(file)
-            self.grouptable.update_one({'_id': self.files[conn]['gid']}, {'$push': {'files': fid}})
+            file = {}
+            file['f_id'] = fid
+            file['file_name'] = self.files[conn]['file_name']
+            self.grouptable.update_one({'_id': self.files[conn]['gid']}, {'$push': {'files': file}})
 
             # self.file_name = finfo[0]
             # self.file_md5 = finfo[1]
@@ -302,9 +305,19 @@ class ServerSide(object):
 
     def join_group(self, conn, data, uid):
         if data: # passphrase,
-            result = self.grouptable.find_one({'_id':data})
+            result = self.phrasetable.find_one({'phrase':str(data)})
             if result:
-                send(conn, result)
+                gid = result['group']
+            else:
+                send(conn, 'UNKNOW')
+                return False
+            result = self.usertable.find({'_id':uid, 'share_groups':{'$in': [ObjectId(gid)]}})
+            if result.count() == 0: # user not joined the group yet
+                self.usertable.update_one({'_id': uid}, {'$push':{'share_groups':ObjectId(gid)}}) # make user in the group
+                self.phrasetable.remove({'phrase':data}) # remove sharephrase in table
+                send(conn, 'SUCCESS')
+            else:
+                send(conn, 'EXISTS')
 
     def share_phrase_gen(self, gid): # takes group id and generate a share phrase
         share_phrase = passphrase_gen(6)  # generate one-time share phrase

@@ -93,7 +93,13 @@ class ClientSide(object):
         print "sending join_share_group request"
         send(self.sock, "JOINGROUP:"+sharephrase)
         group_info = receive(self.sock)
-        return group_info
+        if group_info == "SUCCESS":
+            self.get_groups()
+            return 't'
+        elif group_info == "EXISTS":
+            return 'e'
+        else:
+            return 'u'
 
     def user_update(self):
         send(self.sock, "GETUSERINFO:"+str(self.user['_id']))
@@ -132,10 +138,8 @@ class ClientSide(object):
             send(self.sock, 'FSTRT:')
             for line in iter(lambda: f.read(self.R_BUFF_SIZ), ""):
                 data = 'FDATA:' + line
-                print count
                 count = count + 1
                 send(self.sock, data)
-            print 'file ended'
             send(self.sock, 'FFN:')
         self.get_groups()
 
