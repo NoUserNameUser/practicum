@@ -130,6 +130,7 @@ class ServerSide(object):
                                     'LOGOUT': self.logout,
                                     'FSTRT': self.file_open,
                                     'FFN': self.file_close,
+                                    'FDOWNLOAD': self.file_to_client,
                                     'MKPHRASE': self.make_phrase,
                                 }
                                 # handle different data
@@ -281,6 +282,17 @@ class ServerSide(object):
             print 'close file ' + self.files[conn]['file_name']
             self.files[conn]['fd'].close()
             del self.files[conn]
+
+    def file_to_client(self, conn, data, uid):
+        if data:
+            fid = data
+            file = self.filestable.find_one({'_id':ObjectId(fid)})
+            fpath = "files/" + file['file_name'] + '_' + file['md5']
+            with open(fpath, 'rb') as f:
+                for line in iter(lambda: f.read(self.BUFF_SIZ), ""):
+                    send(conn, line)
+            send(conn, 'FDONE:')
+
 
     def create_group(self, conn, data, uid):
         if data: # group name, no cast

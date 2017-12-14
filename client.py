@@ -134,14 +134,28 @@ class ClientSide(object):
         send(self.sock, data)
 
         with open(file_path, 'rb') as f:
-            count = 0
             send(self.sock, 'FSTRT:')
             for line in iter(lambda: f.read(self.R_BUFF_SIZ), ""):
                 data = 'FDATA:' + line
-                count = count + 1
                 send(self.sock, data)
             send(self.sock, 'FFN:')
         self.get_groups()
+
+    def file_download(self, fid, fname):
+        send(self.sock, 'FDOWNLOAD:'+fid)
+        fpath = 'C:\\Users\\findj\\Downloads\\'+fname
+        with open(fpath, 'wb') as f:
+            while 1:
+                fdata = receive(self.sock)
+                if 'FDONE:' in fdata:
+                    f.write(fdata[0:fdata.index('FDONE:')])
+                    break
+                print fdata
+                f.write(fdata)
+
+        print 'done'
+        return True
+
 
     def make_phrase(self, gid): # function to make sharing phrase for a group
         send(self.sock, 'MKPHRASE:'+gid)

@@ -189,9 +189,9 @@ class MainPage(tk.Frame):
         self.popup.add_command(label="Upload files", command=lambda : self.file_to_group(gid))
         # self.popup.add_separator()
 
-    def file_control_menu(self):
+    def file_control_menu(self, fid, fname):
         self.popup = tk.Menu(self, tearoff=0)
-        self.popup.add_command(label="Download")
+        self.popup.add_command(label="Download", command=lambda : self.file_download(fid, fname))
 
     def do_popup(self, e):
         # display the popup menu
@@ -199,7 +199,7 @@ class MainPage(tk.Frame):
         if iid:
             pid = self.tree.parent(iid)
             if pid:  # a child item is selected
-                self.file_control_menu()
+                self.file_control_menu(iid, self.tree.item(iid)['text'])
             else:  # top level is selected, populate group menu items
                 self.group_control_menu(iid)
 
@@ -222,6 +222,9 @@ class MainPage(tk.Frame):
         self.clipboard_append(msg)
         msg = "One-time share phrase "+msg+" created. It's in your clipboard now! Go ahead and paste it to your friend."
         tkMessageBox.showinfo("Your phrase", msg)
+
+    def file_download(self, fid, fname):
+        self.controller.app.file_download(fid, fname)
 
 class GroupCreationPage(tk.Frame):
     def __init__(self, parent, controller):
