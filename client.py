@@ -7,7 +7,7 @@ import socket, os, hashlib
 from communication import send, receive
 
 class ClientSide(object):
-    R_BUFF_SIZ = 16777216 # 16M
+    R_BUFF_SIZ = 8000000 # 8MB
 
     def __init__(self):
 
@@ -142,15 +142,17 @@ class ClientSide(object):
         self.get_groups()
 
     def file_download(self, fid, fname):
-        send(self.sock, 'FDOWNLOAD:'+fid)
         fpath = 'C:\\Users\\findj\\Downloads\\'+fname
+        count = 1
         with open(fpath, 'wb') as f:
             while 1:
+                send(self.sock, 'FDOWNLOAD:'+fid)
                 fdata = receive(self.sock)
+                print count
+                count = count + 1
                 if 'FDONE:' in fdata:
                     f.write(fdata[0:fdata.index('FDONE:')])
                     break
-                print fdata
                 f.write(fdata)
 
         print 'done'

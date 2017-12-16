@@ -22,12 +22,13 @@ def receive(channel):
     try:
         size = socket.ntohl(struct.unpack("L", size)[0])
     except struct.error, e:
+        print e
         return ''
 
     buf = ""
 
     while len(buf) < size:
-        buf = channel.recv(size - len(buf))
+        buf += channel.recv(size - len(buf))
 
     return unmarshall(buf)[0]
 

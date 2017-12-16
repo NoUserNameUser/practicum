@@ -21,6 +21,7 @@ class ServerSide(object):
         self.clientmap = {}
         # file map
         self.files = {}
+        self.sending = {}
         # Output socket list
         self.outputs = []
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -286,12 +287,21 @@ class ServerSide(object):
     def file_to_client(self, conn, data, uid):
         if data:
             fid = data
-            file = self.filestable.find_one({'_id':ObjectId(fid)})
-            fpath = "files/" + file['file_name'] + '_' + file['md5']
-            with open(fpath, 'rb') as f:
-                for line in iter(lambda: f.read(self.BUFF_SIZ), ""):
-                    send(conn, line)
-            send(conn, 'FDONE:')
+            if uid not in self.sending:
+                self.sending[uid] = {}
+
+            if fid in self.sending[uid]: # if fd in sending list
+                fd = self.sending[uid][fid]
+            else:
+                file = self.filestable.find_one({'_id':ObjectId(fid)})
+                fpath = "files/" + file['file_name'] + '_' + file['md5']
+                fd = open(fpath, 'rb')
+                self.sending[uid][fid] = fd
+            data = fd.read(self.BUFF_SIZ)
+            if data != '':
+                send(conn, data)
+            else:
+                send(conn, 'FDONE:')
 
 
     def create_group(self, conn, data, uid):
