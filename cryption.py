@@ -4,10 +4,18 @@ import os
 import binascii
 
 
-def encrypt(raw):
-    iv = Random.new().read(AES.block_size)
-    cipher = AES.new(self.key, AES.MODE_CBC, iv)
-    return cipher.encrypt(raw)
+class Cryption:
+    def __init__(self):
+        self.iv = Random.new().read(AES.block_size)
+
+    def cipher_gen(self, key):
+        self.cipher = AES.new(key, AES.MODE_CBC, self.iv)
+
+    def encrypt(self, raw):
+        return self.cipher.encrypt(raw)
+
+    def decrypt(self, encrypted):
+        return self.cipher.decrypt(encrypted)
 
 
 def keygen():

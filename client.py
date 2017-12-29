@@ -129,10 +129,10 @@ class ClientSide(object):
     def file_transfer(self, file_path, gid):
         # output = open('copy.txt', 'wb')
         fname = os.path.basename(file_path)
-        # TODO: do encryption
         data = 'FINFO:' + fname + '\\' + self.md5Gen(file_path) + '\\' + gid
         send(self.sock, data)
 
+        # TODO: do encryption
         with open(file_path, 'rb') as f:
             send(self.sock, 'FSTRT:')
             for line in iter(lambda: f.read(self.R_BUFF_SIZ), ""):
