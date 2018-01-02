@@ -1,21 +1,30 @@
 from Crypto import Random
 from Crypto.Cipher import AES
-import os
-import binascii
-
+import os, binascii, hashlib, base64
 
 class Cryption:
-    def __init__(self):
-        self.iv = Random.new().read(AES.block_size)
-
-    def cipher_gen(self, key):
-        self.cipher = AES.new(key, AES.MODE_CBC, self.iv)
+    def __init__(self, key):
+        self.bs = 32
+        self.key = hashlib.sha256(key.encode()).digest()
 
     def encrypt(self, raw):
-        return self.cipher.encrypt(raw)
+        raw = self._pad(raw)
+        iv = Random.new().read(AES.block_size)
+        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        return base64.b64encode(iv + cipher.encrypt(raw))
 
-    def decrypt(self, encrypted):
-        return self.cipher.decrypt(encrypted)
+    def decrypt(self, enc):
+        enc = base64.b64decode(enc)
+        iv = enc[:AES.block_size]
+        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        return self._unpad(cipher.decrypt(enc[AES.block_size:]))
+
+    def _pad(self, s):
+        return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
+
+    @staticmethod
+    def _unpad(s):
+        return s[:-ord(s[len(s) - 1:])]
 
 
 def keygen():

@@ -3,8 +3,9 @@ Created on May 3, 2017
 
 @author: findj
 '''
-import socket, os, hashlib
+import socket, os, hashlib, struct
 from communication import send, receive
+from cryption import Cryption
 
 class ClientSide(object):
     R_BUFF_SIZ = 8000000 # 8MB
@@ -56,8 +57,6 @@ class ClientSide(object):
                 response = receive(self.sock)
                 print response # print out the received message
 
-    def mainloop(self):
-        return
 
     # function to authenticate users
     def login_auth(self, username):
@@ -131,18 +130,20 @@ class ClientSide(object):
         fname = os.path.basename(file_path)
         data = 'FINFO:' + fname + '\\' + self.md5Gen(file_path) + '\\' + gid
         send(self.sock, data)
-
-        # TODO: do encryption
+        crypt = Cryption(gid)
         with open(file_path, 'rb') as f:
             send(self.sock, 'FSTRT:')
             for line in iter(lambda: f.read(self.R_BUFF_SIZ), ""):
-                data = 'FDATA:' + line
+                line = crypt.encrypt(line)
+                size = struct.pack("L", len(line))
+                data = 'FDATA:' + size + line
                 send(self.sock, data)
             send(self.sock, 'FFN:')
         self.get_groups()
 
-    def file_download(self, fid, fname):
-        fpath = 'C:\\Users\\findj\\Downloads\\'+fname
+    def file_download(self, fid, fname, gid):
+
+        fpath = 'C:\\Users\\findj\\Downloads\\'+fname + ".tmp"
         count = 1
         with open(fpath, 'wb') as f:
             while 1:
@@ -153,11 +154,29 @@ class ClientSide(object):
                 if 'FDONE:' in fdata:
                     f.write(fdata[0:fdata.index('FDONE:')])
                     break
+
                 f.write(fdata)
 
+        self.file_decrypt(gid, fpath)
         print 'done'
         return True
 
+    def file_decrypt(self, gid, file_path):
+        crypt = Cryption(gid)
+        with open(file_path[:-4], 'wb') as df:
+            with open(file_path, 'rb') as f:
+
+                while 1:
+                    # size = struct.calcsize("L")
+                    size = f.read(4)
+                    if not size:
+                        break
+                    size = struct.unpack("L", size)[0]
+                    line = f.read(size)
+                    line = crypt.decrypt(line)
+                    df.write(line)
+
+        os.remove(file_path)
 
     def make_phrase(self, gid): # function to make sharing phrase for a group
         send(self.sock, 'MKPHRASE:'+gid)

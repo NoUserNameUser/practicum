@@ -189,9 +189,9 @@ class MainPage(tk.Frame):
         self.popup.add_command(label="Upload files", command=lambda : self.file_to_group(gid))
         # self.popup.add_separator()
 
-    def file_control_menu(self, fid, fname):
+    def file_control_menu(self, fid, fname, pid):
         self.popup = tk.Menu(self, tearoff=0)
-        self.popup.add_command(label="Download", command=lambda : self.file_download(fid, fname))
+        self.popup.add_command(label="Download", command=lambda : self.file_download(fid, fname, pid))
 
     def do_popup(self, e):
         # display the popup menu
@@ -199,7 +199,7 @@ class MainPage(tk.Frame):
         if iid:
             pid = self.tree.parent(iid)
             if pid:  # a child item is selected
-                self.file_control_menu(iid, self.tree.item(iid)['text'])
+                self.file_control_menu(iid, self.tree.item(iid)['text'], pid)
             else:  # top level is selected, populate group menu items
                 self.group_control_menu(iid)
 
@@ -212,6 +212,8 @@ class MainPage(tk.Frame):
         fpath = askopenfilename()
         # file copy and do encryption
         # upload to server
+        if not fpath:
+            return False;
         self.controller.app.file_transfer(fpath, gid)
         self.tree_insert(self.controller.app.groups)
 
@@ -223,8 +225,8 @@ class MainPage(tk.Frame):
         msg = "One-time share phrase "+msg+" created. It's in your clipboard now! Go ahead and paste it to your friend."
         tkMessageBox.showinfo("Your phrase", msg)
 
-    def file_download(self, fid, fname):
-        self.controller.app.file_download(fid, fname)
+    def file_download(self, fid, fname, gid):
+        self.controller.app.file_download(fid, fname, gid)
 
 class GroupCreationPage(tk.Frame):
     def __init__(self, parent, controller):
