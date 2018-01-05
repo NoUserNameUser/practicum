@@ -3,7 +3,7 @@ Created on May 3, 2017
 
 @author: findj
 '''
-import socket, signal, sys
+import socket, signal, os
 import select
 from communication import send, receive, passphrase_gen
 from pymongo import MongoClient
@@ -274,7 +274,10 @@ class ServerSide(object):
     def file_open(self, conn, data, uid):
         if not data:
             print 'in file_open if data'
-            path = "files/" + self.files[conn]['file_name'] + '_' + self.files[conn]['md5']
+            directory = "files/"
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            path = directory + self.files[conn]['file_name'] + '_' + self.files[conn]['md5']
             self.fdescriptor = open(path, 'wb')
             print self.fdescriptor
             self.files[conn]['fd'] = self.fdescriptor
@@ -304,6 +307,7 @@ class ServerSide(object):
                 send(conn, data)
             else:
                 send(conn, 'FDONE:')
+                self.sending.pop(uid, None)
 
 
     def create_group(self, conn, data, uid):
