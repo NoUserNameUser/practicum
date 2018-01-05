@@ -9,7 +9,7 @@ from cryption import Cryption
 
 class ClientSide(object):
     R_BUFF_SIZ = 8000000 # 8MB
-
+    DOWNLOAD_DIR = '/home/fedora/Downloads/'
     def __init__(self):
 
         self.CONNECTION = {
@@ -143,7 +143,7 @@ class ClientSide(object):
 
     def file_download(self, fid, fname, gid):
 
-        fpath = 'C:\\Users\\findj\\Downloads\\'+fname + ".tmp"
+        fpath = self.DOWNLOAD_DIR+fname + ".tmp"
         count = 1
         with open(fpath, 'wb') as f:
             while 1:
