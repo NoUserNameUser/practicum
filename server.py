@@ -10,6 +10,8 @@ from pymongo import MongoClient
 from bson import ObjectId
 import datetime
 
+SERVE_PORT = 8888
+
 class ServerSide(object):
     CONN_LIMIT = 5
     BUFF_SIZ = 1024
@@ -373,4 +375,4 @@ class ServerSide(object):
 
 
 if __name__ == "__main__":
-    ss = ServerSide(8888).serve()
+    ss = ServerSide(SERVE_PORT).serve()
