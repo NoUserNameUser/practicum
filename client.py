@@ -9,7 +9,7 @@ from cryption import Cryption
 
 class ClientSide(object):
     R_BUFF_SIZ = 8000000 # 8MB
-    DOWNLOAD_DIR = '/home/fedora/Downloads/'
+    DOWNLOAD_DIR = 'C:\\Users\\findj\\Downloads\\test'
     def __init__(self):
 
         self.CONNECTION = {
