@@ -305,6 +305,7 @@ class ServerSide(object):
                 send(conn, data)
             else:
                 send(conn, 'FDONE:')
+                self.sending.pop(uid, None)
 
 
     def create_group(self, conn, data, uid):

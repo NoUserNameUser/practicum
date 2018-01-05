@@ -167,8 +167,8 @@ class ClientSide(object):
             with open(file_path, 'rb') as f:
 
                 while 1:
-                    # size = struct.calcsize("L")
-                    size = f.read(4)
+                    s_size = struct.calcsize("L")
+                    size = f.read(s_size)
                     if not size:
                         break
                     size = struct.unpack("L", size)[0]
