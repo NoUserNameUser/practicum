@@ -11,14 +11,12 @@ unmarshall = cPickle.loads
 def send(channel, *args):
     buf = marshall(args)
     value = socket.htonl(len(buf))
-    size = struct.pack('L', value)
-    channel.send(size)
+    channel.send(struct.pack('L', value))
     channel.send(buf)
 
 
 def receive(channel):
-    size = struct.calcsize('L')
-    size = channel.recv(size)
+    size = channel.recv(struct.calcsize('L'))
     try:
         size = socket.ntohl(struct.unpack('L', size)[0])
     except struct.error, e:
