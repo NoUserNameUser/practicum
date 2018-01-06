@@ -9,11 +9,11 @@ from cryption import Cryption
 
 class ClientSide(object):
     R_BUFF_SIZ = 8000000 # 8MB
-    DOWNLOAD_DIR = 'C:\\Users\\findj\\Downloads\\test'
+    DOWNLOAD_DIR = 'C:\\Users\\findj\\Downloads\\test\\' # don't  forget closing slashes
     def __init__(self):
 
         self.CONNECTION = {
-            'host' : "localhost",
+            'host' : "192.168.1.68",
             'port' : 8888
         }
 
@@ -135,7 +135,7 @@ class ClientSide(object):
             send(self.sock, 'FSTRT:')
             for line in iter(lambda: f.read(self.R_BUFF_SIZ), ""):
                 line = crypt.encrypt(line)
-                size = struct.pack("L", len(line))
+                size = struct.pack('L', len(line))
                 data = 'FDATA:' + size + line
                 send(self.sock, data)
             send(self.sock, 'FFN:')
@@ -167,11 +167,11 @@ class ClientSide(object):
             with open(file_path, 'rb') as f:
 
                 while 1:
-                    s_size = struct.calcsize("L")
+                    s_size = struct.calcsize('L')
                     size = f.read(s_size)
                     if not size:
                         break
-                    size = struct.unpack("L", size)[0]
+                    size = struct.unpack('L', size)[0]
                     line = f.read(size)
                     line = crypt.decrypt(line)
                     df.write(line)
